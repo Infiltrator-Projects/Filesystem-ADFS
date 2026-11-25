@@ -1,15 +1,34 @@
 # Filesystem-ADFS
 
-Independent Acorn Advanced Disc Filing System (ADFS) provider for InfiltratorOS. This repository is reserved for the canonical C/C++ filesystem engine and its single distributable `ADFS.so`.
+## 1. Purpose and format scope
 
-**Status: documentation only; source extraction pending.** The editable upstream-derived implementation remains in [Filesystems](https://github.com/Infiltrator-Projects/Filesystems/tree/101026021d9088d80b7f0f472d9061f0e2c688a3/native/filesystems/adfs). No independent driver, package, runtime capability or BOOT support is claimed.
+Acorn Advanced Disc Filing System (ADFS). This repository is the designated independent implementation home for InfiltratorOS. **Documentation and migration scaffold only: no independent runtime provider or release is present.**
 
-## Common V2
+## 2. On-disk architecture and invariants
 
-The target interface is exclusively `infiltrator_filesystem_api_v2` from [Libraries](https://github.com/Infiltrator-Projects/Libraries). One native engine owns disc geometry, allocation maps, F/F+ directories, object addresses and RISC OS filetype metadata. Hosted and freestanding profiles must share this engine; no FUSE or separate filesystem driver is permitted.
+Disc records establish geometry; allocation-map zones describe fragments; F/F+ directory formats and indirect disc addresses require separate decoding. RISC OS metadata must not be discarded or reinterpreted as Unix permissions. These are design requirements for the native implementation, not claims about code already present in this repository.
 
-## Build and install
+## 3. Common V2 implementation and capabilities
 
-Planned outputs: `/System/Filesystems/ADFS.so` and `/System/Resources/Documentation/Filesystem-ADFS.pdf`. Release assets are a generic amd64 `.deb`, source-downloading CPU-native `.run`, and GitHub-generated source ZIP. No build or installer exists yet.
+No local Common V2 implementation or advertised operation set has yet been qualified. The target entry point is `infiltrator_filesystem_api_v2`, using bounded, partition-relative host I/O. Implement native probe first, then mount, stat, enumeration, read and volume query where applicable. Consumers must negotiate supported groups and profiles; an unsupported operation must not report success or delegate to a private driver.
 
-See [migration status](MIGRATION_STATUS.md) and [engineering philosophy](docs/PHILOSOPHY.md).
+## 4. Integrity, mutation, allocation and recovery
+
+Mutation, formatting, check/repair and DEFRAG map/plan/execute/verify/recover require format-specific allocation and ordering invariants, exclusive writable host access and demonstrated interruption recovery. Until qualified, reject them before writing. Preserve native disk semantics and do not add a kernel or FUSE fallback as an alternative filesystem authority.
+
+## 5. Build, installation and release
+
+The target installation is `/System/Filesystems/ADFS.so` and `/System/Resources/Documentation/Filesystem-ADFS.pdf`. Neither file is currently distributed by this repository. Once the implementation qualifies, the intended release is a portable amd64 DEB and CPU-native source-first RUN, with GitHub's automatic source archive. No install or build command is advertised before an executable build exists.
+
+## 6. Qualification and limitations
+
+Independent F/F+ images, varying sector geometry, malformed map zones and directory records. Compare independent payloads and unchanged-image hashes; inject truncation, corruption and I/O faults. Establish exact-revision ABI, hosted and import-free freestanding qualification, then independently test BOOT and kernel integration. No local build, runtime or packaging qualification is claimed.
+
+## 7. Technical references and provenance
+
+- [Pinned central source baseline](https://github.com/Infiltrator-Projects/Filesystems/tree/101026021d9088d80b7f0f472d9061f0e2c688a3/native/filesystems/adfs)
+- [Migration and qualification plan](MIGRATION_STATUS.md)
+- [Project philosophy](docs/PHILOSOPHY.md)
+- [Common ABI](https://github.com/Infiltrator-Projects/Libraries)
+
+Preserve inherited notices and licences on source extraction; new project-authored code uses GPL-3.0-or-later. The historical original-format reference and installed PDF manual remain pending. Central code or test results are not evidence of an independent provider.
