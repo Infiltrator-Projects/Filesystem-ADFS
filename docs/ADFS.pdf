@@ -46,25 +46,22 @@ endobj
 << /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 9 0 R >>
 endobj
 9 0 obj
-<< /Length 1801 >>
+<< /Length 1545 >>
 stream
 0.06 0.15 0.23 rg 0 768 595 74 re f
 0.02 0.52 0.56 rg 43 764 90 4 re f
 1 1 1 rg BT /F2 10 Tf 43 811 Td (INFILTRATOR / FILESYSTEM ENGINEERING) Tj ET
 BT /F2 22 Tf 43 784 Td (ADFS - technical reference) Tj ET
-0.08 0.14 0.20 rg BT /F2 15 Tf 43 736 Td (1. Scope, lineage and media families) Tj ET
 0.08 0.14 0.20 rg BT /F3 10 Tf 43 706 Td (ADFS began on the BBC Micro family as a hierarchical alternative to DFS. The) Tj ET
-0.08 0.14 0.20 rg BT /F3 10 Tf 43 692 Td (old-map S/M/L and later D media must not be conflated with the new-map E/F family) Tj ET
-0.08 0.14 0.20 rg BT /F3 10 Tf 43 678 Td (or the later big-directory extension. Old-map allocation records describe) Tj ET
-0.08 0.14 0.20 rg BT /F3 10 Tf 43 664 Td (contiguous free regions; new-map allocation identifies fragments, making) Tj ET
-0.08 0.14 0.20 rg BT /F3 10 Tf 43 650 Td (noncontiguous files possible. A disk image must be interpreted with the exact) Tj ET
-0.08 0.14 0.20 rg BT /F3 10 Tf 43 636 Td (sector ordering, side ordering and geometry of its media profile. An) Tj ET
+0.08 0.14 0.20 rg BT /F3 10 Tf 43 692 Td (old-map S/M/L and later D media must not be conflated with the new-map E/F) Tj ET
+0.08 0.14 0.20 rg BT /F3 10 Tf 43 678 Td (family or the later big-directory extension. Old-map allocation records) Tj ET
+0.08 0.14 0.20 rg BT /F3 10 Tf 43 664 Td (describe contiguous free regions; new-map allocation identifies fragments,) Tj ET
+0.08 0.14 0.20 rg BT /F3 10 Tf 43 650 Td (making noncontiguous files possible. A disk image must be interpreted with the) Tj ET
+0.08 0.14 0.20 rg BT /F3 10 Tf 43 636 Td (exact sector ordering, side ordering and geometry of its media profile. An) Tj ET
 0.08 0.14 0.20 rg BT /F3 10 Tf 43 622 Td (image-container header is outside the filesystem address space. This reference) Tj ET
-0.08 0.14 0.20 rg BT /F3 10 Tf 43 608 Td (concentrates on RISC OS FileCore new-map media and documents old-map differences) Tj ET
-0.08 0.14 0.20 rg BT /F3 10 Tf 43 594 Td (rather than pretending one decoder handles every variant.) Tj ET
-0.08 0.14 0.20 rg BT /F3 10 Tf 43 568 Td (The Archimedes and RISC OS generations extend the earlier BBC Micro design; the) Tj ET
-0.08 0.14 0.20 rg BT /F3 10 Tf 43 554 Td (old-map and FileCore families require separate geometry and allocation admission.) Tj ET
-0.75 0.80 0.84 RG 43 48 m 552 48 l S
+0.08 0.14 0.20 rg BT /F3 10 Tf 43 608 Td (concentrates on RISC OS FileCore new-map media and documents old-map) Tj ET
+0.08 0.14 0.20 rg BT /F3 10 Tf 43 594 Td (differences rather than pretending one decoder handles every variant.) Tj ET
+0.08 0.14 0.20 rg BT /F3 10 Tf 43 570 Td (The Archimedes and RISC OS generations extended the earlier BBC Micro design.) Tj ET
 0.20 0.29 0.36 rg BT /F1 9 Tf 43 32 Td (Historical development and engineering reference | 2) Tj ET
 endstream
 endobj
@@ -388,32 +385,32 @@ xref
 0000000565 00000 n 
 0000002112 00000 n 
 0000002258 00000 n 
-0000004110 00000 n 
-0000004258 00000 n 
-0000005827 00000 n 
-0000005975 00000 n 
-0000007442 00000 n 
-0000007590 00000 n 
-0000009100 00000 n 
-0000009248 00000 n 
-0000011094 00000 n 
-0000011242 00000 n 
-0000012988 00000 n 
-0000013136 00000 n 
-0000014784 00000 n 
-0000014932 00000 n 
-0000016685 00000 n 
-0000016833 00000 n 
-0000018703 00000 n 
-0000018851 00000 n 
-0000020746 00000 n 
-0000020894 00000 n 
-0000022652 00000 n 
-0000022800 00000 n 
-0000024857 00000 n 
-0000025005 00000 n 
+0000003854 00000 n 
+0000004002 00000 n 
+0000005571 00000 n 
+0000005719 00000 n 
+0000007186 00000 n 
+0000007334 00000 n 
+0000008844 00000 n 
+0000008992 00000 n 
+0000010838 00000 n 
+0000010986 00000 n 
+0000012732 00000 n 
+0000012880 00000 n 
+0000014528 00000 n 
+0000014676 00000 n 
+0000016429 00000 n 
+0000016577 00000 n 
+0000018447 00000 n 
+0000018595 00000 n 
+0000020490 00000 n 
+0000020638 00000 n 
+0000022396 00000 n 
+0000022544 00000 n 
+0000024601 00000 n 
+0000024749 00000 n 
 trailer
 << /Size 34 /Root 1 0 R >>
 startxref
-27605
+27349
 %%EOF

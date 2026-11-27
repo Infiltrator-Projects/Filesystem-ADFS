@@ -4,7 +4,7 @@
 
 ADFS began on the BBC Micro family as a hierarchical alternative to DFS. The old-map S/M/L and later D media must not be conflated with the new-map E/F family or the later big-directory extension. Old-map allocation records describe contiguous free regions; new-map allocation identifies fragments, making noncontiguous files possible. A disk image must be interpreted with the exact sector ordering, side ordering and geometry of its media profile. An image-container header is outside the filesystem address space. This reference concentrates on RISC OS FileCore new-map media and documents old-map differences rather than pretending one decoder handles every variant.
 
-The Archimedes and RISC OS generations extend the earlier BBC Micro design; the old-map and FileCore families require separate geometry and allocation admission.
+The Archimedes and RISC OS generations extended the earlier BBC Micro design.
 
 ## Logical addresses and disk discovery
 
