@@ -2,15 +2,15 @@
 
 ## 1. Purpose and format scope
 
-Acorn Advanced Disc Filing System (ADFS). This repository is the designated independent implementation home for InfiltratorOS. **Documentation and migration scaffold only: no independent runtime provider or release is present.**
+Acorn Advanced Disc Filing System (ADFS). This repository is the designated independent implementation home for InfiltratorOS. **Independent read-only Common V2 development provider. No installable release has been published.**
 
 ## 2. On-disk architecture and invariants
 
-Disc records establish geometry; allocation-map zones describe fragments; F/F+ directory formats and indirect disc addresses require separate decoding. RISC OS metadata must not be discarded or reinterpreted as Unix permissions. These are design requirements for the native implementation, not claims about code already present in this repository.
+Disc records establish geometry; allocation-map zones describe fragments; F/F+ directory formats and indirect disc addresses require separate decoding. RISC OS metadata must not be discarded or reinterpreted as Unix permissions. The initial reader implements the subset described below.
 
 ## 3. Common V2 implementation and capabilities
 
-No local Common V2 implementation or advertised operation set has yet been qualified. The target entry point is `infiltrator_filesystem_api_v2`, using bounded, partition-relative host I/O. Implement native probe first, then mount, stat, enumeration, read and volume query where applicable. Consumers must negotiate supported groups and profiles; an unsupported operation must not report success or delegate to a private driver.
+Native FileCore new-map reader with bounded allocation fragments and free chains, zone and directory checksums, E/F and E+/F+ directories, shared fragments, nested files and measured free space. The checksummed map supplies disc identity and root length. Hosted and import-free freestanding builds share the native engine and export `infiltrator_filesystem_api_v2`.
 
 ## 4. Integrity, mutation, allocation and recovery
 
@@ -18,11 +18,11 @@ Mutation, formatting, check/repair and DEFRAG map/plan/execute/verify/recover re
 
 ## 5. Build, installation and release
 
-The target installation is `/System/Filesystems/ADFS.so` and `/System/Resources/Documentation/Filesystem-ADFS.pdf`. Neither file is currently distributed by this repository. Once the implementation qualifies, the intended release is a portable amd64 DEB and CPU-native source-first RUN, with GitHub's automatic source archive. No install or build command is advertised before an executable build exists.
+The target installation is `/System/Filesystems/ADFS.so` and `/System/Resources/Documentation/Filesystem-ADFS.pdf`. Neither file is currently distributed by this repository. Once the implementation qualifies, the intended release is a portable amd64 DEB and CPU-native source-first RUN, with GitHub's automatic source archive. With the pinned Common headers checked out under Libraries, use `make check` for development tests and `make carrier` for the hosted ELF containing its freestanding profile. Neither is an installable release.
 
 ## 6. Qualification and limitations
 
-Independent F/F+ images, varying sector geometry, malformed map zones and directory records. Compare independent payloads and unchanged-image hashes; inject truncation, corruption and I/O faults. Establish exact-revision ABI, hosted and import-free freestanding qualification, then independently test BOOT and kernel integration. No local build, runtime or packaging qualification is claimed.
+[Passing exact-revision CI](https://github.com/Infiltrator-Projects/Filesystem-ADFS/actions/runs/45972969338) at `e2d325572dcbfcc53d7046fb4f0c56cd3d92a80b`. Constructed fixtures and independently sourced physical Acorn E, E+, F and F+ images pass through both builds with 512/4096-byte host sectors; whole-image hashes remain unchanged. Old maps, non-ASCII names, independent payload oracle comparison and signed boot remain unqualified. Write, format, repair, defragmentation and production packages remain outstanding.
 
 ## 7. Technical references and provenance
 

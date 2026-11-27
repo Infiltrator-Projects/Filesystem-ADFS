@@ -1,3 +1,9 @@
-# ADFS development candidate
+# ADFS development qualification
 
-Independent native Common V2 new-map reader for E/F and F+ directories, including FileCore zone and directory checksums, map crosscheck, bounded forward free chains, object fragments, shared-fragment addressing, fragmented reads and nested directories. Hosted and freestanding AMD64 builds use the same engine. Initial ASCII name profile converts the native slash to dot; old-map formats, non-ASCII names, writes, repair, formatting, defragmentation, independent historical media and signed firmware execution remain outstanding. Byte-authored tests are not independent-media evidence.
+Native FileCore new-map reader with bounded allocation fragments and free chains, zone and directory checksums, E/F and E+/F+ directories, shared fragments, nested files and measured free space. The checksummed map supplies disc identity and root length.
+
+[Passing hosted, freestanding and sanitizer CI](https://github.com/Infiltrator-Projects/Filesystem-ADFS/actions/runs/45972969338) at `e2d325572dcbfcc53d7046fb4f0c56cd3d92a80b`.
+
+Constructed fixtures and independently sourced physical Acorn E, E+, F and F+ images pass through both builds with 512/4096-byte host sectors; whole-image hashes remain unchanged. Old maps, non-ASCII names, independent payload oracle comparison and signed boot remain unqualified.
+
+No mutation, formatting, repair, defragmentation or production release is qualified. The BOOT development matrix separately tests its embedded firmware carrier and namespace reads; matrix inclusion alone is not a successful run or signed firmware boot evidence.
