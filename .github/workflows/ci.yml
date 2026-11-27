@@ -22,3 +22,23 @@ jobs:
           make check
           make clean
           make CFLAGS="-O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer" check
+
+      - uses: actions/checkout@v4
+        with:
+          repository: simoninns/OpenAcornExplorer
+          ref: 93c8904d9049e579d9c9ac468b8a36ed652b3775
+          path: .acorn-oracle
+          persist-credentials: false
+      - name: Read genuine hardware-created Acorn images
+        run: |
+          set -e
+          for item in 'E 800K' 'E+ 800K' 'F 1600K' 'F+ 1600K'; do
+            image=".acorn-oracle/ADFS Test images/ADFS $item.adl"
+            case "$item" in *+*) variant=2;; *) variant=1;; esac
+            sha256sum "$image" > before.sha256
+            od -An -tx1 -j 3520 -N 60 "$image"
+            od -An -tx1 -j 4 -N 60 "$image"
+            build/test_adfs build/carrier/ADFS.so "$image" "$variant"
+            build/test_adfs build/firmware/ADFS.so "$image" "$variant"
+            sha256sum -c before.sha256
+          done

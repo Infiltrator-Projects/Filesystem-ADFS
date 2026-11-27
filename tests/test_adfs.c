@@ -71,6 +71,53 @@ static int rd(void*c,uint64_t off,void*out,uint32_t n)
 {(void)c;if(fail||off>sizeof disk||n>sizeof disk-off||off%sector||n%sector)return -1;memcpy(out,disk+off,n);return 0;}
 static void*alloc(void*c,size_t n){(void)c;void*p=malloc(n);if(p)++allocs;return p;}
 static void drop(void*c,void*p){(void)c;if(p){assert(allocs);--allocs;free(p);}}
+static int real_rd(void*c,uint64_t off,void*out,uint32_t n)
+{
+    FILE*f=c;if(off%sector||n%sector||off>INT64_MAX||fseek(f,(long)off,SEEK_SET))return -1;
+    return fread(out,1,n,f)==n?0:-1;
+}
+static int real_walk(const IfsFsCoreOpsV2*core,void*v,const char*path,unsigned depth,unsigned*count)
+{
+    if(depth>32)return 1;
+    char name[256],full[4096];IfsFsEntryV2 e={.structure_bytes=sizeof e,.name=name,.name_capacity=sizeof name};
+    for(unsigned index=0;index<10000;++index){
+        int rc=core->directory_entry(v,path,index,&e);
+        if(rc==IFS_FS_END)return 0;
+        if(rc){fprintf(stderr,"list %s index %u rc=%d\n",path,index,rc);return 1;}
+        int n=snprintf(full,sizeof full,"%s%s%s",path,!strcmp(path,"/")?"":"/",name);
+        if(n<0||(size_t)n>=sizeof full||++*count>10000)return 1;
+        IfsFsEntryV2 check={.structure_bytes=sizeof check,.name=name,.name_capacity=sizeof name};
+        rc=core->stat(v,full,&check);
+        if(rc||check.type!=e.type||check.size_bytes!=e.size_bytes){fprintf(stderr,"stat %s rc=%d\n",full,rc);return 1;}
+        printf("%s %llu bytes type %u\n",full,(unsigned long long)e.size_bytes,e.type);
+        if(e.type==IFS_FS_ENTRY_DIRECTORY){if(real_walk(core,v,full,depth+1,count))return 1;}
+        else if(e.type==IFS_FS_ENTRY_FILE){
+            uint8_t buf[4096];for(uint64_t at=0;at<e.size_bytes;){
+                uint32_t n=e.size_bytes-at>sizeof buf?sizeof buf:(uint32_t)(e.size_bytes-at);
+                rc=core->read(v,full,at,buf,n);if(rc){fprintf(stderr,"read %s rc=%d\n",full,rc);return 1;}at+=n;
+            }
+        }
+    }
+    return 1;
+}
+static int real_test(const IfsFsCoreOpsV2*core,const char*path,unsigned want)
+{
+    FILE*f=fopen(path,"rb");assert(f);assert(!fseek(f,0,SEEK_END));long size=ftell(f);assert(size>0);
+    for(sector=512;sector<=4096;sector*=8){
+        assert(size%sector==0);
+        IfsFsHostRuntimeV2 h={.abi_version=2,.structure_bytes=sizeof h,.capabilities=IFS_FS_HOST_READ_ONLY,
+          .volume_bytes=(uint64_t)size,.logical_sector_bytes=sector,.physical_sector_bytes=sector,.maximum_transfer_bytes=4096,
+          .context=f,.read_at=real_rd,.allocate=alloc,.release=drop};
+        uint32_t variant=0;int rc=core->probe(&h,&variant);
+        if(rc){fprintf(stderr,"real probe %s rc=%d sector=%u\n",path,rc,sector);return 1;}
+        assert(variant==want&&!allocs);
+        void*v=NULL;IfsFsVolumeInfoV2 i={.structure_bytes=sizeof i};assert(core->mount(&h,&v,&i)==0&&v);
+        unsigned count=0;rc=real_walk(core,v,"/",0,&count);
+        assert(core->unmount(v)==0&&!allocs);if(rc)return rc;
+        printf("Real Acorn image %s sector=%u: %u entries, %llu free bytes\n",path,sector,count,(unsigned long long)i.free_bytes);
+    }
+    assert(!fclose(f));return 0;
+}
 int main(int argc,char**argv)
 {
     if(argc==4&&!strcmp(argv[1],"--emit")){
@@ -78,11 +125,12 @@ int main(int argc,char**argv)
         assert(fwrite(disk,1,sizeof disk,f)==sizeof disk);assert(fwrite(blk(16),1,16*B,p)==16*B);
         assert(fwrite(blk(64),1,17,p)==17);assert(!fclose(f)&&!fclose(p));return 0;
     }
-    assert(argc==2);void*lib=dlopen(argv[1],RTLD_NOW|RTLD_LOCAL);if(!lib){puts(dlerror());return 1;}
+    assert(argc==2||argc==4);void*lib=dlopen(argv[1],RTLD_NOW|RTLD_LOCAL);if(!lib){puts(dlerror());return 1;}
     IfsFsModuleApiEntryV2 entry_;*(void**)(&entry_)=dlsym(lib,IFS_FS_COMMON_EXPORT_V2);assert(entry_);
     const IfsFsModuleApiV2*api=entry_();assert(ifs_fs_api_v2_valid(api,"adfs"));
     const IfsFsCoreOpsV2*core=(const void*)ifs_fs_group_v2(api,IFS_FS_GROUP_CORE);
     const IfsFsVolumeOpsV2*vol=(const void*)ifs_fs_group_v2(api,IFS_FS_GROUP_VOLUME);assert(core&&vol&&!core->write);
+    if(argc==4){int rc=real_test(core,argv[2],(unsigned)strtoul(argv[3],NULL,10));dlclose(lib);return rc;}
     for(big=0;big<2;++big)for(sector=512;sector<=4096;sector*=8){
         fixture();IfsFsHostRuntimeV2 h={.abi_version=2,.structure_bytes=sizeof h,.capabilities=IFS_FS_HOST_READ_ONLY,
           .volume_bytes=sizeof disk,.logical_sector_bytes=sector,.physical_sector_bytes=sector,.maximum_transfer_bytes=4096,
