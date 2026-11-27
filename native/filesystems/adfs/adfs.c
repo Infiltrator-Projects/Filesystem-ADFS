@@ -65,7 +65,7 @@ static uint8_t checkboot(const uint8_t*p)
     for(uint32_t i=511;i;){c=(c&255)+(c>>8);c+=p[--i];}
     return (uint8_t)c;
 }
-static int record(Volume*v,const uint8_t*p)
+static int record(Volume*v,const uint8_t*p,int boot)
 {
     uint32_t log=p[0],logunit=p[5],id=p[4],zones=p[9]|(uint32_t)p[42]<<8;
     if(log<8||log>10||id<log+3||id>19||logunit>30||!zones)return IFS_FS_NOT_FOUND;
@@ -88,11 +88,12 @@ static int record(Volume*v,const uint8_t*p)
     uint64_t map=mapbit*unit;
     if(map%b||map>bytes||(uint64_t)zones*b>bytes-map)return IFS_FS_CORRUPT;
     uint32_t root=le32(p+12),size=version?le32(p+48):2048;
-    if((root>>8)<2||(root>>8)>=(1u<<id)||!size||size%2048||size>MAX_DIR)return IFS_FS_CORRUPT;
+    if((root>>8)<2||(root>>8)>=(1u<<id)||(!size&&!(boot&&version))||size%2048||size>MAX_DIR)return IFS_FS_CORRUPT;
     v->bytes=bytes;v->unit=unit;v->block=b;v->zones=zones;v->zonebits=zonebits;
     v->idlen=id;v->ids=zonebits/(id+1);v->share=p[40]&15;v->map_addr=map;
     v->root=root;v->root_size=size;v->variant=version?2:1;
-    for(unsigned i=0;i<10&&p[22+i];++i){
+    zero(v->label,sizeof(v->label));
+    for(unsigned i=0;!boot&&i<10&&p[22+i];++i){
         if(p[22+i]<32||p[22+i]>=127)return IFS_FS_UNSUPPORTED;
         v->label[i]=(char)p[22+i];
     }
@@ -119,12 +120,12 @@ static int load_map(Volume*v,const uint8_t*record0)
             /* The boot record supplies geometry. Its disc identity fields
              * can be uninitialised; the checked map's record is authoritative. */
             const uint8_t *mr=map+4;
-            if(!same(mr,record0,20)||!same(mr+36,record0+36,24))return IFS_FS_CORRUPT;
-            zero(v->label,sizeof(v->label));
-            for(unsigned i=0;i<10&&mr[22+i];++i){
-                if(mr[22+i]<32||mr[22+i]>=127)return IFS_FS_UNSUPPORTED;
-                v->label[i]=(char)mr[22+i];
-            }
+            if(!same(mr,record0,20)||!same(mr+36,record0+36,12)||
+               !same(mr+52,record0+52,8)||
+               (le32(record0+48)&&le32(record0+48)!=le32(mr+48)))return IFS_FS_CORRUPT;
+            /* F+ boot records may omit the root directory length.
+             * Only a validated map record supplies the real length. */
+            rc=record(v,mr,0);if(rc)return rc;
         }
         uint32_t start=z?32:32+DRBITS,end=32+v->zonebits;
         if(z+1==v->zones){
@@ -275,7 +276,7 @@ static int discover(const IfsFsHostRuntimeV2*h,Volume*out)
     if(h->volume_bytes>=3584){
         rc=rd(&v,3072,raw,512);if(rc)return rc;
         if(checkboot(raw)==raw[511]){
-            copy(dr,raw+448,DR);rc=record(&v,dr);
+            copy(dr,raw+448,DR);rc=record(&v,dr,1);
             if(rc!=IFS_FS_NOT_FOUND&&rc)return rc;
         }else rc=IFS_FS_NOT_FOUND;
     }
@@ -283,7 +284,7 @@ static int discover(const IfsFsHostRuntimeV2*h,Volume*out)
         rc=rd(&v,0,raw,512);if(rc)return rc;
         copy(dr,raw+4,DR);
         if(dr[9]!=1||dr[42])return IFS_FS_NOT_FOUND;
-        rc=record(&v,dr);if(rc)return rc;
+        rc=record(&v,dr,0);if(rc)return rc;
     }
     rc=load_map(&v,dr);
     if(!rc){Node rootnode;Entry e;root(&v,&rootnode);rc=child(&v,&rootnode,NULL,0,UINT32_MAX,&e);if(rc==IFS_FS_END)rc=IFS_FS_OK;}
