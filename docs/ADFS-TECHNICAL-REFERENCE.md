@@ -4,6 +4,8 @@
 
 ADFS began on the BBC Micro family as a hierarchical alternative to DFS. The old-map S/M/L and later D media must not be conflated with the new-map E/F family or the later big-directory extension. Old-map allocation records describe contiguous free regions; new-map allocation identifies fragments, making noncontiguous files possible. A disk image must be interpreted with the exact sector ordering, side ordering and geometry of its media profile. An image-container header is outside the filesystem address space. This reference concentrates on RISC OS FileCore new-map media and documents old-map differences rather than pretending one decoder handles every variant.
 
+The Archimedes and RISC OS generations extend the earlier BBC Micro design; the old-map and FileCore families require separate geometry and allocation admission.
+
 ## Logical addresses and disk discovery
 
 Distinguish image byte offsets, device transfer sectors, FileCore sectors and allocation-map bits. FileCore sectors have size 2^log2secsize bytes; each allocation map bit represents 2^log2bpmb bytes. Never assume either equals 512. Discover a candidate disc record using the format-specific boot block or map location; verify its checksum, geometry, declared size and corroborating map metadata before accepting the volume. The map may itself occupy more than one allocation zone. Translate a FileCore logical address only after deriving the layout for its exact media profile. Do not assume a physical floppy track order from a logical image.
@@ -36,6 +38,8 @@ The big-directory header includes a leading sequence, revision fields, identifyi
 
 RISC OS uses load and execution addresses as metadata, not Unix inode time and mode fields. A typed timestamp convention uses the high marker bits of the load address, a 12-bit filetype and a 40-bit centisecond count based on 1900; untyped load/execute values must remain intact. Preserve native owner/public access, directory and locking semantics separately from any host permission projection. Name suffixes added by a host to represent filetype are presentation conventions and must not silently become stored names. Enumerate a directory by its validated record count or terminator rather than treating unused record bytes as names.
 
+The retained header identifies the RISC OS filetype specifically in load-address bits 19:8. Preserve these bits, native attributes and original untyped load/execute values independently of the host presentation.
+
 ## Mutation, formatting and recovery
 
 An old-map file can grow only into suitable contiguous free storage or after relocation; a new-map object may acquire additional fragments subject to representability, free-link and sharing constraints. Write payload and flush before publishing a new directory reference; maintain coherent zone control/check bytes, directory sequence and checksum, and all shared allocation relationships. The exact original FileCore write ordering is revision-specific; this proposed safe implementation boundary is not a claim of native journalling. A formatter needs a verified media profile, boot/disc record, zone map and root structure; compare a blank image byte-for-byte at the structural level with independent native output. Repair should reconstruct ownership from validated directories and map chains, report ambiguity, and avoid reclaiming a still-referenced shared fragment.
@@ -44,8 +48,14 @@ An old-map file can grow only into suitable contiguous free storage or after rel
 
 For a hypothetical sector exponent of 9 and allocation-bit exponent of 10, each sector is 512 bytes and each allocation-map bit represents 1024 bytes. A valid 16-bit-long fragment representation covers 16384 bytes before any object-level sharing or metadata restrictions; this is an arithmetic example, not a prescribed profile. Test exact-sector and cross-sector reads, two fragment runs for a single object, malformed termination, duplicate IDs with and without legitimate sharing, fixed and big directories, parent cycles, truncated names, typed and untyped metadata, and contradictory disk sizes. Independent RISC OS images and original FileCore documentation are the oracle. Do not advertise a write or defrag operation until its independent interruption and recovery tests pass.
 
+## Implementation and qualification boundary
+
+The original on-disk specification is independent of the Infiltrator provider. Its sole public interface is Common V2 (https://github.com/Infiltrator-Projects/Libraries/blob/main/docs/FILESYSTEM_COMMON_ABI_V2.md). Discover operation capabilities at runtime; a format signature, source function or export is not proof of qualification. Preserve distinct unsupported-feature, corrupt-media, I/O and stale-handle results. Check host geometry, transfer bounds and overlapping sector updates; require exclusive unmounted ownership and durable flush before raw mutation. Test Media and Defragmenter use the same provider operations, not separate format parsers. Hosted and freestanding profiles, release packages, BOOT and kernel integration require separate exact-source evidence. Current implementation and installation status belongs to this repository's README and qualification records, not the format's historical chronology.
+
 ## References and unresolved details
 
 Acorn developer specification: https://www.4corn.co.uk/archive/Acorn_Developer_Site/reference/ro4/api/html/filecore2.html . Read sections 7.2-7.5 for directory and disc-record layouts. RISC OS 3 Programmer's Reference Manual, volume 2, pages 2-199 to 2-209 and volume 5a, pages 5a-165 to 5a-168, describes the original FileCore format and extensions. Linux reader documentation: https://docs.kernel.org/6.13/filesystems/adfs.html ; implementation reference: https://github.com/torvalds/linux/tree/v6.12/fs/adfs . Exact boot-block checksum and zone-check algorithms, old-map offsets, fragment-zone search ordering and revision-specific collation must be verified against these original sources and independent images before independent write implementation. This manual is an expanded engineering reference, not an assertion of implementation or release qualification.
 
-The PDF also preserves both older documents as explicitly historical appendices.
+Linux map.c is evidence for zone validation and map traversal; compare the disc-record arithmetic, map ownership, F/F+ lookup and physical data reads in that order.
+
+Retained original source provenance: https://github.com/Infiltrator-Projects/Filesystems/blob/101026021d9088d80b7f0f472d9061f0e2c688a3/native/filesystems/adfs/linux/adfs.h (blob prefix 223f0283d2).

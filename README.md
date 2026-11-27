@@ -26,7 +26,7 @@ Independent F/F+ images, varying sector geometry, malformed map zones and direct
 
 ## 7. Technical references and provenance
 
-- [Technical reference (PDF)](docs/ADFS.pdf) — original-format technical reference with historical appendices and [PDF stream source](docs/ADFS.pdfstreams); not an operational manual.
+- [Technical reference (PDF)](docs/ADFS.pdf) — original-format technical reference  and [PDF stream source](docs/ADFS.pdfstreams); not an operational manual.
 
 - [Pinned central source baseline](https://github.com/Infiltrator-Projects/Filesystems/tree/101026021d9088d80b7f0f472d9061f0e2c688a3/native/filesystems/adfs)
 - [Native design](native/filesystems/adfs/DESIGN.md)
@@ -35,4 +35,4 @@ Independent F/F+ images, varying sector geometry, malformed map zones and direct
 - [Project philosophy](docs/PHILOSOPHY.md)
 - [Common ABI](https://github.com/Infiltrator-Projects/Libraries)
 
-Preserve inherited notices and licences on source extraction; new project-authored code uses GPL-3.0-or-later. The [technical reference](docs/ADFS-TECHNICAL-REFERENCE.md) expands the original-format research. The PDF includes both earlier documents as historical appendices; installation remains pending. Central code or test results are not evidence of an independent provider.
+Preserve inherited notices and licences on source extraction; new project-authored code uses GPL-3.0-or-later. The [technical reference](docs/ADFS-TECHNICAL-REFERENCE.md) expands the original-format research. installation remains pending. Central code or test results are not evidence of an independent provider.
