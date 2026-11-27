@@ -88,7 +88,7 @@ static int record(Volume*v,const uint8_t*p)
     uint64_t map=mapbit*unit;
     if(map%b||map>bytes||(uint64_t)zones*b>bytes-map)return IFS_FS_CORRUPT;
     uint32_t root=le32(p+12),size=version?le32(p+48):2048;
-    if(root>>8!=2||!size||size%2048||size>MAX_DIR)return IFS_FS_CORRUPT;
+    if((root>>8)<2||(root>>8)>=(1u<<id)||!size||size%2048||size>MAX_DIR)return IFS_FS_CORRUPT;
     v->bytes=bytes;v->unit=unit;v->block=b;v->zones=zones;v->zonebits=zonebits;
     v->idlen=id;v->ids=zonebits/(id+1);v->share=p[40]&15;v->map_addr=map;
     v->root=root;v->root_size=size;v->variant=version?2:1;
@@ -174,10 +174,9 @@ static int file_read(const Volume*v,const Node*n,uint64_t at,void*out,uint32_t l
             if(x->free||x->id!=frag)continue;
             if(offset>=x->length){offset-=x->length;continue;}
             uint32_t chunk=x->length-offset<len?(uint32_t)(x->length-offset):len;
-            uint64_t phys=x->start+offset,mapend=v->map_addr+(uint64_t)v->zones*v->block;
+            uint64_t phys=x->start+offset;
             if(phys<v->map_addr+(uint64_t)v->zones*v->block&&v->map_addr<phys+chunk)
                 return IFS_FS_CORRUPT;
-            (void)mapend;
             int rc=rd(v,phys,dst,chunk);if(rc)return rc;
             len-=chunk;dst+=chunk;offset=0;
         }
