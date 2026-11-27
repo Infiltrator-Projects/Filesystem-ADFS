@@ -38,6 +38,7 @@ jobs:
             sha256sum "$image" > before.sha256
             od -An -tx1 -j 3520 -N 60 "$image"
             od -An -tx1 -j 4 -N 60 "$image"
+            case "$item" in F*) od -An -tx1 -j 813056 -N 64 "$image";; esac
             build/test_adfs build/carrier/ADFS.so "$image" "$variant"
             build/test_adfs build/firmware/ADFS.so "$image" "$variant"
             sha256sum -c before.sha256

@@ -115,7 +115,17 @@ static int load_map(Volume*v,const uint8_t*record0)
         int rc=rd(v,v->map_addr+(uint64_t)z*v->block,map,v->block);if(rc)return rc;
         if(checkzone(map,v->block)!=map[0])return IFS_FS_CORRUPT;
         cross^=map[3];
-        if(!z&&!same(map+4,record0,DR))return IFS_FS_CORRUPT;
+        if(!z){
+            /* The boot record supplies geometry. Its disc identity fields
+             * can be uninitialised; the checked map's record is authoritative. */
+            const uint8_t *mr=map+4;
+            if(!same(mr,record0,20)||!same(mr+36,record0+36,24))return IFS_FS_CORRUPT;
+            zero(v->label,sizeof(v->label));
+            for(unsigned i=0;i<10&&mr[22+i];++i){
+                if(mr[22+i]<32||mr[22+i]>=127)return IFS_FS_UNSUPPORTED;
+                v->label[i]=(char)mr[22+i];
+            }
+        }
         uint32_t start=z?32:32+DRBITS,end=32+v->zonebits;
         if(z+1==v->zones){
             if(total<logical||total-logical>end-start)return IFS_FS_CORRUPT;
