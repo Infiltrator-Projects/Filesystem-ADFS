@@ -36,9 +36,7 @@ The big-directory header includes a leading sequence, revision fields, identifyi
 
 ## Native attributes and timestamps
 
-RISC OS uses load and execution addresses as metadata, not Unix inode time and mode fields. A typed timestamp convention uses the high marker bits of the load address, a 12-bit filetype and a 40-bit centisecond count based on 1900; untyped load/execute values must remain intact. Preserve native owner/public access, directory and locking semantics separately from any host permission projection. Name suffixes added by a host to represent filetype are presentation conventions and must not silently become stored names. Enumerate a directory by its validated record count or terminator rather than treating unused record bytes as names.
-
-The retained header identifies the RISC OS filetype specifically in load-address bits 19:8. Preserve these bits, native attributes and original untyped load/execute values independently of the host presentation.
+RISC OS uses load and execution addresses as metadata, not Unix inode time and mode fields. A typed timestamp convention uses the high marker bits of the load address, a 12-bit filetype in load-address bits 19:8 and a 40-bit centisecond count based on 1900. Preserve the filetype, original untyped load/execute values, native owner/public access, directory and locking semantics independently of any host permission projection. Name suffixes added by a host to represent filetype are presentation conventions and must not silently become stored names. Enumerate a directory by its validated record count or terminator rather than treating unused record bytes as names.
 
 ## Mutation, formatting and recovery
 

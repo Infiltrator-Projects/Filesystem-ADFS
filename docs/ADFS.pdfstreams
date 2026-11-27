@@ -24,6 +24,7 @@ BT /F2 22 Tf 43 784 Td (ADFS - technical reference) Tj ET
 0.02 0.52 0.56 rg 43 764 90 4 re f
 1 1 1 rg BT /F2 10 Tf 43 811 Td (INFILTRATOR / FILESYSTEM ENGINEERING) Tj ET
 BT /F2 22 Tf 43 784 Td (ADFS - technical reference) Tj ET
+0.08 0.14 0.20 rg BT /F2 15 Tf 43 736 Td (1. Scope, lineage and media families) Tj ET
 0.08 0.14 0.20 rg BT /F3 10 Tf 43 706 Td (ADFS began on the BBC Micro family as a hierarchical alternative to DFS. The) Tj ET
 0.08 0.14 0.20 rg BT /F3 10 Tf 43 692 Td (old-map S/M/L and later D media must not be conflated with the new-map E/F) Tj ET
 0.08 0.14 0.20 rg BT /F3 10 Tf 43 678 Td (family or the later big-directory extension. Old-map allocation records) Tj ET
@@ -170,17 +171,15 @@ BT /F2 22 Tf 43 784 Td (ADFS - technical reference) Tj ET
 1 1 1 rg BT /F2 10 Tf 43 811 Td (INFILTRATOR / FILESYSTEM ENGINEERING) Tj ET
 BT /F2 22 Tf 43 784 Td (ADFS - technical reference) Tj ET
 0.08 0.14 0.20 rg BT /F2 15 Tf 43 736 Td (9. Native attributes and timestamps) Tj ET
-0.08 0.14 0.20 rg BT /F3 10 Tf 43 706 Td (RISC OS uses load and execution addresses as metadata, not Unix inode time and mode) Tj ET
-0.08 0.14 0.20 rg BT /F3 10 Tf 43 692 Td (fields. A typed timestamp convention uses the high marker bits of the load address,) Tj ET
-0.08 0.14 0.20 rg BT /F3 10 Tf 43 678 Td (a 12-bit filetype and a 40-bit centisecond count based on 1900; untyped) Tj ET
-0.08 0.14 0.20 rg BT /F3 10 Tf 43 664 Td (load/execute values must remain intact. Preserve native owner/public access,) Tj ET
-0.08 0.14 0.20 rg BT /F3 10 Tf 43 650 Td (directory and locking semantics separately from any host permission projection.) Tj ET
-0.08 0.14 0.20 rg BT /F3 10 Tf 43 636 Td (Name suffixes added by a host to represent filetype are presentation conventions) Tj ET
-0.08 0.14 0.20 rg BT /F3 10 Tf 43 622 Td (and must not silently become stored names. Enumerate a directory by its validated) Tj ET
-0.08 0.14 0.20 rg BT /F3 10 Tf 43 608 Td (record count or terminator rather than treating unused record bytes as names.) Tj ET
-0.08 0.14 0.20 rg BT /F3 10 Tf 43 582 Td (The retained header identifies the RISC OS filetype specifically in load-address) Tj ET
-0.08 0.14 0.20 rg BT /F3 10 Tf 43 568 Td (bits 19:8. Preserve these bits, native attributes and original untyped load/execute) Tj ET
-0.08 0.14 0.20 rg BT /F3 10 Tf 43 554 Td (values independently of the host presentation.) Tj ET
+0.08 0.14 0.20 rg BT /F3 10 Tf 43 706 Td (RISC OS uses load and execution addresses as metadata, not Unix inode time and) Tj ET
+0.08 0.14 0.20 rg BT /F3 10 Tf 43 692 Td (mode fields. A typed timestamp convention uses the high marker bits of the load) Tj ET
+0.08 0.14 0.20 rg BT /F3 10 Tf 43 678 Td (address, a 12-bit filetype in load-address bits 19:8 and a 40-bit centisecond) Tj ET
+0.08 0.14 0.20 rg BT /F3 10 Tf 43 664 Td (count based on 1900. Preserve the filetype, original untyped load/execute) Tj ET
+0.08 0.14 0.20 rg BT /F3 10 Tf 43 650 Td (values, native owner/public access, directory and locking semantics) Tj ET
+0.08 0.14 0.20 rg BT /F3 10 Tf 43 636 Td (independently of any host permission projection. Name suffixes added by a host) Tj ET
+0.08 0.14 0.20 rg BT /F3 10 Tf 43 622 Td (to represent filetype are presentation conventions and must not silently become) Tj ET
+0.08 0.14 0.20 rg BT /F3 10 Tf 43 608 Td (stored names. Enumerate a directory by its validated record count or terminator) Tj ET
+0.08 0.14 0.20 rg BT /F3 10 Tf 43 594 Td (rather than treating unused record bytes as names.) Tj ET
 0.75 0.80 0.84 RG 43 48 m 552 48 l S
 0.20 0.29 0.36 rg BT /F1 9 Tf 43 32 Td (Historical development and engineering reference | 10) Tj ET
 
