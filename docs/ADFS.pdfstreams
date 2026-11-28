@@ -106,6 +106,13 @@ BT /F2 22 Tf 43 784 Td (ADFS - technical reference) Tj ET
 0.08 0.14 0.20 rg BT /F3 10 Tf 43 594 Td (and cross-zone check according to the selected FileCore format. Scan bounded bit) Tj ET
 0.08 0.14 0.20 rg BT /F3 10 Tf 43 580 Td (ranges; require terminators and reject cycles or a free-chain link that lands) Tj ET
 0.08 0.14 0.20 rg BT /F3 10 Tf 43 566 Td (inside another fragment.) Tj ET
+0.08 0.14 0.20 rg BT /F2 13 Tf 43 534 Td (Common V2 physical maps) Tj ET
+0.08 0.14 0.20 rg BT /F3 10 Tf 43 511 Td (ALLOCATION.MAP follows the verified zone free chains and reports partition-) Tj ET
+0.08 0.14 0.20 rg BT /F3 10 Tf 43 497 Td (relative byte ranges. DEFRAG.MAP follows a file's indirect address and shared-) Tj ET
+0.08 0.14 0.20 rg BT /F3 10 Tf 43 483 Td (fragment offset in zone order. Adjacent physical runs merge, and the last run) Tj ET
+0.08 0.14 0.20 rg BT /F3 10 Tf 43 469 Td (ends at the file's logical length. The four external E/F and E+/F+ disk images) Tj ET
+0.08 0.14 0.20 rg BT /F3 10 Tf 43 455 Td (are checked by comparing each reported physical range with the corresponding) Tj ET
+0.08 0.14 0.20 rg BT /F3 10 Tf 43 441 Td (file bytes.) Tj ET
 0.75 0.80 0.84 RG 43 48 m 552 48 l S
 0.20 0.29 0.36 rg BT /F1 9 Tf 43 32 Td (Historical development and engineering reference | 6) Tj ET
 

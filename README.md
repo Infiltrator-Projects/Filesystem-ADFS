@@ -2,7 +2,7 @@
 
 ## 1. Purpose and format scope
 
-Acorn Advanced Disc Filing System (ADFS). This repository is the designated independent implementation home for InfiltratorOS. **Independent read-only Common V2 development provider. No installable release has been published.**
+Acorn Advanced Disc Filing System (ADFS). This repository is the designated independent implementation home for InfiltratorOS. **Read-only Common V2 provider for FileCore new-map media.**
 
 ## 2. On-disk architecture and invariants
 
@@ -14,15 +14,15 @@ Native FileCore new-map reader with bounded allocation fragments and free chains
 
 ## 4. Integrity, mutation, allocation and recovery
 
-Mutation, formatting, check/repair and DEFRAG map/plan/execute/verify/recover require format-specific allocation and ordering invariants, exclusive writable host access and demonstrated interruption recovery. Until qualified, reject them before writing. Preserve native disk semantics and do not add a kernel or FUSE fallback as an alternative filesystem authority.
+The provider reports whole-partition allocation and file extents through Common V2. The E/F and E+/F+ tests cover fragmented and shared objects. Formatting, relocation, repair and durable mutation remain outstanding.
 
 ## 5. Build, installation and release
 
-The target installation is `/System/Filesystems/ADFS.so` and `/System/Resources/Documentation/Filesystem-ADFS.pdf`. Neither file is currently distributed by this repository. Once the implementation qualifies, the intended release is a portable amd64 DEB and CPU-native source-first RUN, with GitHub's automatic source archive. With the pinned Common headers checked out under Libraries, use `make check` for development tests and `make carrier` for the hosted ELF containing its freestanding profile. Neither is an installable release.
+The generic AMD64 DEB installs `/System/Filesystems/ADFS.so` and `/System/Resources/Documentation/Filesystem-ADFS.pdf`. The native RUN rebuilds from pinned source. `make check` tests the hosted carrier and freestanding image.
 
 ## 6. Qualification and limitations
 
-[Passing exact-revision CI](https://github.com/Infiltrator-Projects/Filesystem-ADFS/actions/runs/45972969338) at `e2d325572dcbfcc53d7046fb4f0c56cd3d92a80b`. Constructed fixtures and independently sourced physical Acorn E, E+, F and F+ images pass through both builds with 512/4096-byte host sectors; whole-image hashes remain unchanged. Old maps, non-ASCII names, independent payload oracle comparison and signed boot remain unqualified. Write, format, repair, defragmentation and production packages remain outstanding.
+[Passing exact-revision CI](https://github.com/Infiltrator-Projects/Filesystem-ADFS/actions/runs/45972969338) at `e2d325572dcbfcc53d7046fb4f0c56cd3d92a80b`. Constructed fixtures and independently sourced physical Acorn E, E+, F and F+ images pass through both builds with 512/4096-byte host sectors; whole-image hashes remain unchanged. Old maps, non-ASCII names, independent payload oracle comparison and signed boot remain unqualified. Write, format, repair and relocation remain outstanding.
 
 ## 7. Technical references and provenance
 

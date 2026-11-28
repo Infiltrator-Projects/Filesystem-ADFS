@@ -76,7 +76,51 @@ static int real_rd(void*c,uint64_t off,void*out,uint32_t n)
     FILE*f=c;if(off%sector||n%sector||off>INT64_MAX||fseek(f,(long)off,SEEK_SET))return -1;
     return fread(out,1,n,f)==n?0:-1;
 }
-static int real_walk(const IfsFsCoreOpsV2*core,void*v,const char*path,unsigned depth,unsigned*count)
+static const IfsFsAllocationOpsV2 *allocation;
+static const IfsFsDefragOpsV2 *defrag;
+
+static void check_allocation(void *v, uint64_t volume_bytes, uint64_t expected_free)
+{
+    IfsFsAllocationRangeV2 range;
+    uint64_t cursor=0, free_bytes=0;
+    uint32_t count;
+    while (cursor < volume_bytes) {
+        assert(allocation->map(v,cursor,&range,1,&count)==IFS_FS_OK && count==1);
+        assert(range.physical_offset==cursor && range.length && range.length<=volume_bytes-cursor);
+        assert(!range.reserved && range.state>=IFS_FS_SPACE_FREE && range.state<=IFS_FS_SPACE_RESERVED);
+        if (range.state==IFS_FS_SPACE_FREE) free_bytes+=range.length;
+        cursor+=range.length;
+    }
+    assert(free_bytes==expected_free);
+    assert(allocation->map(v,cursor,&range,1,&count)==IFS_FS_END && count==0);
+    assert(allocation->map(v,cursor+1,&range,1,&count)==IFS_FS_INVALID && count==0);
+}
+
+/* On the original media, read bytes at each reported physical address
+ * independently of the module's file reader and compare the entire file. */
+static void compare_mapped_file(FILE *image, const IfsFsCoreOpsV2 *core,
+                                void *v, const char *path, uint64_t bytes)
+{
+    uint64_t logical=0;
+    for (uint64_t index=0;;++index) {
+        IfsFsExtentV2 extent;
+        uint32_t count;
+        int rc=defrag->map(v,path,index,&extent,1,&count);
+        if (rc==IFS_FS_END) { assert(count==0 && logical==bytes); break; }
+        assert(rc==0 && count==1 && extent.logical_offset==logical && extent.length);
+        assert(!extent.flags && !extent.reserved && extent.length<=bytes-logical);
+        for (uint64_t at=0;at<extent.length;) {
+            uint8_t raw[4096], file[4096];
+            uint32_t length=extent.length-at>sizeof raw?sizeof raw:(uint32_t)(extent.length-at);
+            assert(!fseek(image,(long)(extent.physical_offset+at),SEEK_SET));
+            assert(fread(raw,1,length,image)==length);
+            assert(core->read(v,path,logical+at,file,length)==0 && !memcmp(raw,file,length));
+            at+=length;
+        }
+        logical+=extent.length;
+    }
+}
+static int real_walk(FILE *image,const IfsFsCoreOpsV2*core,void*v,const char*path,unsigned depth,unsigned*count)
 {
     if(depth>32)return 1;
     char name[256],full[4096];IfsFsEntryV2 e={.structure_bytes=sizeof e,.name=name,.name_capacity=sizeof name};
@@ -90,8 +134,9 @@ static int real_walk(const IfsFsCoreOpsV2*core,void*v,const char*path,unsigned d
         rc=core->stat(v,full,&check);
         if(rc||check.type!=e.type||check.size_bytes!=e.size_bytes){fprintf(stderr,"stat %s rc=%d\n",full,rc);return 1;}
         printf("%s %llu bytes type %u\n",full,(unsigned long long)e.size_bytes,e.type);
-        if(e.type==IFS_FS_ENTRY_DIRECTORY){if(real_walk(core,v,full,depth+1,count))return 1;}
+        if(e.type==IFS_FS_ENTRY_DIRECTORY){if(real_walk(image,core,v,full,depth+1,count))return 1;}
         else if(e.type==IFS_FS_ENTRY_FILE){
+            compare_mapped_file(image,core,v,full,e.size_bytes);
             uint8_t buf[4096];for(uint64_t at=0;at<e.size_bytes;){
                 uint32_t n=e.size_bytes-at>sizeof buf?sizeof buf:(uint32_t)(e.size_bytes-at);
                 rc=core->read(v,full,at,buf,n);if(rc){fprintf(stderr,"read %s rc=%d\n",full,rc);return 1;}at+=n;
@@ -112,7 +157,7 @@ static int real_test(const IfsFsCoreOpsV2*core,const char*path,unsigned want)
         if(rc){fprintf(stderr,"real probe %s rc=%d sector=%u\n",path,rc,sector);return 1;}
         assert(variant==want&&!allocs);
         void*v=NULL;IfsFsVolumeInfoV2 i={.structure_bytes=sizeof i};assert(core->mount(&h,&v,&i)==0&&v);
-        unsigned count=0;rc=real_walk(core,v,"/",0,&count);
+        unsigned count=0;check_allocation(v,h.volume_bytes,i.free_bytes);rc=real_walk(f,core,v,"/",0,&count);
         assert(core->unmount(v)==0&&!allocs);if(rc)return rc;
         printf("Real Acorn image %s sector=%u: %u entries, %llu free bytes\n",path,sector,count,(unsigned long long)i.free_bytes);
     }
@@ -130,6 +175,9 @@ int main(int argc,char**argv)
     const IfsFsModuleApiV2*api=entry_();assert(ifs_fs_api_v2_valid(api,"adfs"));
     const IfsFsCoreOpsV2*core=(const void*)ifs_fs_group_v2(api,IFS_FS_GROUP_CORE);
     const IfsFsVolumeOpsV2*vol=(const void*)ifs_fs_group_v2(api,IFS_FS_GROUP_VOLUME);assert(core&&vol&&!core->write);
+    allocation=(const void *)ifs_fs_group_v2(api,IFS_FS_GROUP_ALLOCATION);
+    defrag=(const void *)ifs_fs_group_v2(api,IFS_FS_GROUP_DEFRAG);
+    assert(allocation && defrag && defrag->header.capabilities==IFS_FS_DEFRAG_MAP);
     if(argc==4){int rc=real_test(core,argv[2],(unsigned)strtoul(argv[3],NULL,10));dlclose(lib);return rc;}
     for(big=0;big<2;++big)for(sector=512;sector<=4096;sector*=8){
         fixture();IfsFsHostRuntimeV2 h={.abi_version=2,.structure_bytes=sizeof h,.capabilities=IFS_FS_HOST_READ_ONLY,
@@ -137,6 +185,19 @@ int main(int argc,char**argv)
           .read_at=rd,.allocate=alloc,.release=drop};
         uint32_t variant=0;int rc=core->probe(&h,&variant);if(rc)fprintf(stderr,"probe rc=%d big=%u\n",rc,big);assert(!rc&&variant==big+1&&!allocs);
         void*v=NULL;IfsFsVolumeInfoV2 info={.structure_bytes=sizeof info};assert(core->mount(&h,&v,&info)==0&&v&&info.free_bytes==176*B);
+        check_allocation(v,h.volume_bytes,176*B);
+        IfsFsAllocationRangeV2 range[2];uint32_t got;
+        assert(allocation->map(v,79*B+7,range,2,&got)==0 && got==2);
+        assert(range[0].state==IFS_FS_SPACE_ALLOCATED && range[0].length==B-7);
+        assert(range[1].state==IFS_FS_SPACE_FREE && range[1].physical_offset==80*B);
+        IfsFsExtentV2 extent[2];
+        assert(defrag->map(v,"/proof.bin",0,extent,2,&got)==0 && got==2);
+        assert(extent[0].logical_offset==0 && extent[0].physical_offset==16*B && extent[0].length==16*B);
+        assert(extent[1].logical_offset==16*B && extent[1].physical_offset==64*B && extent[1].length==17);
+        assert(defrag->map(v,"/dir/child",0,extent,1,&got)==0 && got==1);
+        assert(extent[0].physical_offset==48*B && extent[0].length==3);
+        assert(defrag->map(v,"/dir",0,extent,1,&got)==IFS_FS_UNSUPPORTED && got==0);
+        assert(defrag->map(v,"/proof.bin",UINT64_MAX,extent,1,&got)==IFS_FS_END && got==0);
         char name[256];IfsFsEntryV2 e={.structure_bytes=sizeof e,.name=name,.name_capacity=sizeof name};
         assert(core->directory_entry(v,"/",0,&e)==0&&!strcmp(name,"PROOF.BIN"));
         assert(core->directory_entry(v,"/",1,&e)==0&&!strcmp(name,"DIR"));
@@ -148,6 +209,14 @@ int main(int argc,char**argv)
         blk(1)[2047]^=1;assert(core->stat(v,"/proof.bin",&e)==IFS_FS_CORRUPT);memcpy(disk,saved,sizeof disk);
         fail=1;assert(core->stat(v,"/proof.bin",&e)!=0);fail=0;
         assert(core->unmount(v)==0&&core->unmount(v)==IFS_FS_INVALID&&!allocs);
+        assert(allocation->map(v,0,range,2,&got)==IFS_FS_INVALID && !got);
+        assert(defrag->map(v,"/proof.bin",0,extent,2,&got)==IFS_FS_INVALID && !got);
+        /* The partition may extend beyond the filesystem geometry. */
+        h.volume_bytes+=sector;
+        assert(core->mount(&h,&v,&info)==0);
+        assert(allocation->map(v,MAX,range,2,&got)==0 && got==1);
+        assert(range[0].state==IFS_FS_SPACE_RESERVED && range[0].length==sector);
+        assert(core->unmount(v)==0);h.volume_bytes-=sector;
         disk[0]^=1;assert(core->probe(&h,&variant)==IFS_FS_CORRUPT&&!allocs);memcpy(disk,saved,sizeof disk);
         bits(disk,8,12,593-8);zonecheck();assert(core->probe(&h,&variant)==IFS_FS_CORRUPT&&!allocs);memcpy(disk,saved,sizeof disk);
         assert(!memcmp(disk,saved,sizeof disk));

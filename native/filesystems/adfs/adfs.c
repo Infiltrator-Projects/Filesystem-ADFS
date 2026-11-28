@@ -167,16 +167,21 @@ static int load_map(Volume*v,const uint8_t*record0)
     }
     return covered>=end?IFS_FS_OK:IFS_FS_CORRUPT;
 }
-static int file_read(const Volume*v,const Node*n,uint64_t at,void*out,uint32_t len)
+/* Reads and extent queries use the same FileCore traversal. A shared object
+ * starts inside its first fragment, and a fragmented object can wrap from
+ * the last zone to the first. The visitor receives only bytes before EOF. */
+typedef int (*FileVisitor)(const Volume *, void *, uint64_t, uint64_t, uint32_t);
+static int walk_file(const Volume*v,const Node*n,uint64_t at,uint32_t len,
+                     FileVisitor visit,void *context)
 {
-    if((!out&&len)||at>n->bytes||len>n->bytes-at)return IFS_FS_INVALID;
+    if(at>n->bytes||len>n->bytes-at)return IFS_FS_INVALID;
     uint32_t frag=n->id>>8,share=n->id&255;
     if(frag<2||frag>=(1u<<v->idlen))return IFS_FS_CORRUPT;
     uint64_t offset=at;
     if(share)offset+=(uint64_t)(share-1)*(UINT64_C(1)<<v->share)*v->block;
     uint32_t zone=frag==2?v->zones/2:frag/v->ids;
     if(zone>=v->zones)return IFS_FS_CORRUPT;
-    uint8_t*dst=out;
+    uint64_t logical=at;
     for(uint32_t i=0;i<v->zones&&len;++i){
         if(cancel(v))return IFS_FS_BUSY;
         const Zone*z=&v->zone[(zone+i)%v->zones];
@@ -188,11 +193,28 @@ static int file_read(const Volume*v,const Node*n,uint64_t at,void*out,uint32_t l
             uint64_t phys=x->start+offset;
             if(phys<v->map_addr+(uint64_t)v->zones*v->block&&v->map_addr<phys+chunk)
                 return IFS_FS_CORRUPT;
-            int rc=rd(v,phys,dst,chunk);if(rc)return rc;
-            len-=chunk;dst+=chunk;offset=0;
+            int rc=visit(v,context,logical,phys,chunk);if(rc)return rc;
+            len-=chunk;logical+=chunk;offset=0;
         }
     }
     return len?IFS_FS_CORRUPT:IFS_FS_OK;
+}
+
+static int read_fragment(const Volume *v, void *context, uint64_t logical,
+                         uint64_t physical, uint32_t length)
+{
+    uint8_t **destination = context;
+    (void)logical;
+    int rc = rd(v, physical, *destination, length);
+    if (!rc) *destination += length;
+    return rc;
+}
+
+static int file_read(const Volume *v,const Node *n,uint64_t at,void *out,uint32_t len)
+{
+    uint8_t *destination = out;
+    if (!out && len) return IFS_FS_INVALID;
+    return walk_file(v, n, at, len, read_fragment, &destination);
 }
 static uint32_t rot(uint32_t x){return (x>>13)|(x<<19);}
 static uint8_t fold(uint32_t x){return (uint8_t)(x^(x>>8)^(x>>16)^(x>>24));}
@@ -350,6 +372,105 @@ static int label_impl(void*p,char*out,uint32_t cap,uint32_t*n)
     if(cap<=len)return IFS_FS_NO_SPACE;
     copy(out,v->label,len+1);*n=len;return IFS_FS_OK;
 }
+/* Convert the complete, checksummed map to physical ranges. Fragment IDs
+ * may repeat for shared objects. Allocation comes from the zone free chain
+ * and never from counting directory references. The final fragment can
+ * precede the end of the host partition. */
+static int allocation_map(void *handle, uint64_t cursor, IfsFsAllocationRangeV2 *ranges,
+                          uint32_t capacity, uint32_t *written)
+{
+    if (!written) return IFS_FS_INVALID;
+    *written = 0;
+    if (!enter()) return IFS_FS_BUSY;
+    Volume *v = mounted(handle);
+    if (!v || !ranges || !capacity || cursor > v->host.volume_bytes) return leave(IFS_FS_INVALID);
+    if (cursor == v->host.volume_bytes) return leave(IFS_FS_END);
+
+    uint32_t low = 0, high = v->count, count = 0;
+    while (low < high) {
+        uint32_t mid = low + (high - low) / 2;
+        const Fragment *f = &v->frags[mid];
+        if (f->start + f->length <= cursor) low = mid + 1;
+        else high = mid;
+    }
+    while (cursor < v->host.volume_bytes) {
+        if (cancel(v)) return leave(IFS_FS_BUSY);
+        uint64_t end = v->host.volume_bytes;
+        uint32_t state = IFS_FS_SPACE_RESERVED;
+        if (low < v->count) {
+            const Fragment *f = &v->frags[low++];
+            end = f->start + f->length;
+            state = f->free ? IFS_FS_SPACE_FREE :
+                    f->id == 1 ? IFS_FS_SPACE_RESERVED : IFS_FS_SPACE_ALLOCATED;
+        }
+        if (count && ranges[count-1].state == state) ranges[count-1].length += end - cursor;
+        else {
+            if (count == capacity) break;
+            ranges[count++] = (IfsFsAllocationRangeV2){cursor, end-cursor, state, 0};
+        }
+        cursor = end;
+    }
+    *written = count;
+    return leave(IFS_FS_OK);
+}
+
+typedef struct {
+    IfsFsExtentV2 pending, *out;
+    uint64_t first, index;
+    uint32_t count, capacity;
+} ExtentPage;
+
+static void finish_extent(ExtentPage *page)
+{
+    if (page->index >= page->first && page->count < page->capacity)
+        page->out[page->count++] = page->pending;
+    ++page->index;
+}
+
+static int collect_extent(const Volume *v, void *context, uint64_t logical,
+                          uint64_t physical, uint32_t length)
+{
+    ExtentPage *page = context;
+    (void)v;
+    if (page->pending.length) {
+        if (page->pending.physical_offset + page->pending.length == physical) {
+            page->pending.length += length;
+            return IFS_FS_OK;
+        }
+        finish_extent(page);
+    }
+    page->pending = (IfsFsExtentV2){logical, physical, length, 0, 0};
+    return IFS_FS_OK;
+}
+
+static int file_map(void *handle, const char *path, uint64_t first, IfsFsExtentV2 *out,
+                    uint32_t capacity, uint32_t *written)
+{
+    if (!written) return IFS_FS_INVALID;
+    *written = 0;
+    if (!enter()) return IFS_FS_BUSY;
+    Volume *v = mounted(handle);
+    if (!v || !out || !capacity) return leave(IFS_FS_INVALID);
+    Entry e;
+    int rc = resolve(v, path, &e);
+    if (rc) return leave(rc);
+    if (e.node.type != IFS_FS_ENTRY_FILE) return leave(IFS_FS_UNSUPPORTED);
+    ExtentPage page = {.out=out, .first=first, .capacity=capacity};
+    rc = walk_file(v, &e.node, 0, e.node.bytes, collect_extent, &page);
+    if (rc) return leave(rc);
+    if (page.pending.length) finish_extent(&page);
+    *written = page.count;
+    return leave(page.count ? IFS_FS_OK : IFS_FS_END);
+}
+
+static const IfsFsAllocationOpsV2 allocation_ops = {
+    .header={2,sizeof(allocation_ops),IFS_FS_GROUP_ALLOCATION,0,IFS_FS_ALLOCATION_MAP},
+    .map=allocation_map
+};
+static const IfsFsDefragOpsV2 defrag_ops = {
+    .header={2,sizeof(defrag_ops),IFS_FS_GROUP_DEFRAG,0,IFS_FS_DEFRAG_MAP}, .map=file_map
+};
+
 #define WRAP(name,args,call) static int name args{if(!enter())return IFS_FS_BUSY;return leave(call);}
 WRAP(probe,(const IfsFsHostRuntimeV2*h,uint32_t*v),probe_impl(h,v))
 WRAP(mount,(const IfsFsHostRuntimeV2*h,void**p,IfsFsVolumeInfoV2*o),mount_impl(h,p,o))
@@ -362,12 +483,16 @@ WRAP(label_path,(void*p,char*s,uint32_t c,uint32_t*n),label_impl(p,s,c,n))
 static const IfsFsCoreOpsV2 core={.header={2,sizeof(core),IFS_FS_GROUP_CORE,0,IFS_FS_CORE_PROBE|IFS_FS_CORE_MOUNT|IFS_FS_CORE_STAT|IFS_FS_CORE_LIST|IFS_FS_CORE_READ},.probe=probe,.mount=mount,.unmount=unmount,.stat=stat_path,.directory_entry=list_path,.read=read_path};
 static const IfsFsVolumeOpsV2 volume={.header={2,sizeof(volume),IFS_FS_GROUP_VOLUME,0,IFS_FS_VOLUME_QUERY|IFS_FS_VOLUME_LABEL_GET},.query=query,.label=label_path};
 static const IfsFsGroupHeaderV2*group(uint32_t id,uint32_t lo,uint32_t hi)
-{if(lo>2||hi<2)return NULL;if(id==IFS_FS_GROUP_CORE)return &core.header;if(id==IFS_FS_GROUP_VOLUME)return &volume.header;return NULL;}
+{if(lo>2||hi<2)return NULL;if(id==IFS_FS_GROUP_CORE)return &core.header;if(id==IFS_FS_GROUP_VOLUME)return &volume.header;
+ if(id==IFS_FS_GROUP_ALLOCATION)return &allocation_ops.header;
+ if(id==IFS_FS_GROUP_DEFRAG)return &defrag_ops.header;
+ return NULL;}
 static const IfsFsModuleApiV2 api={.abi_version=2,.structure_bytes=sizeof(api),.format_id="adfs",
 #ifdef IFS_BOOT_FIRMWARE
 .runtime_profiles=IFS_FS_PROFILE_FREESTANDING|IFS_FS_PROFILE_FIRMWARE,
 #else
 .runtime_profiles=IFS_FS_PROFILE_HOSTED,
 #endif
-.group_mask=IFS_FS_GROUP_BIT(IFS_FS_GROUP_CORE)|IFS_FS_GROUP_BIT(IFS_FS_GROUP_VOLUME),.query_group=group};
+.group_mask=IFS_FS_GROUP_BIT(IFS_FS_GROUP_CORE)|IFS_FS_GROUP_BIT(IFS_FS_GROUP_VOLUME)|
+            IFS_FS_GROUP_BIT(IFS_FS_GROUP_DEFRAG)|IFS_FS_GROUP_BIT(IFS_FS_GROUP_ALLOCATION),.query_group=group};
 __attribute__((visibility("default")))const IfsFsModuleApiV2*infiltrator_filesystem_api_v2(void){return &api;}

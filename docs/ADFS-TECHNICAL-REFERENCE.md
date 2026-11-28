@@ -57,3 +57,7 @@ Acorn developer specification: https://www.4corn.co.uk/archive/Acorn_Developer_S
 Linux map.c is evidence for zone validation and map traversal; compare the disc-record arithmetic, map ownership, F/F+ lookup and physical data reads in that order.
 
 Retained original source provenance: https://github.com/Infiltrator-Projects/Filesystems/blob/101026021d9088d80b7f0f472d9061f0e2c688a3/native/filesystems/adfs/linux/adfs.h (blob prefix 223f0283d2).
+
+### Physical allocation and file extents
+
+The E/F and E+/F+ reader exports both Common V2 mapping operations. ALLOCATION.MAP starts at any partition-relative byte. It derives free runs from the checked zone free chains and marks the partition tail reserved. DEFRAG.MAP walks an object's fragments from its starting zone, applies its sharing offset, joins physically adjacent bytes and clips the last extent at EOF. The extent index addresses the resulting runs in logical file order. Neither operation moves storage. The hardware-image tests compare every mapped file byte with the bytes at its reported physical address.
